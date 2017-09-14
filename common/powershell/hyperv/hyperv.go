@@ -194,7 +194,7 @@ func CreateVirtualMachine(vmName string, path string, ram int64, diskSize int64,
 param([string]$vmName, [string]$path, [long]$memoryStartupBytes, [long]$newVHDSizeBytes, [string]$switchName, [int]$generation)
 $vhdx = $vmName + '.vhdx'
 $vhdPath = Join-Path -Path $path -ChildPath $vhdx
-New-VM -Name $vmName -Path $path -MemoryStartupBytes $memoryStartupBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $newVHDSizeBytes -SwitchName $switchName -Generation $generation
+Hyper-V\New-VM -Name $vmName -Path $path -MemoryStartupBytes $memoryStartupBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $newVHDSizeBytes -SwitchName $switchName -Generation $generation
 `
 		var ps powershell.PowerShellCmd
 		err := ps.Run(script, vmName, path, strconv.FormatInt(ram, 10), strconv.FormatInt(diskSize, 10), switchName, strconv.FormatInt(int64(generation), 10))
@@ -204,7 +204,7 @@ New-VM -Name $vmName -Path $path -MemoryStartupBytes $memoryStartupBytes -NewVHD
 param([string]$vmName, [string]$path, [long]$memoryStartupBytes, [long]$newVHDSizeBytes, [string]$switchName)
 $vhdx = $vmName + '.vhdx'
 $vhdPath = Join-Path -Path $path -ChildPath $vhdx
-New-VM -Name $vmName -Path $path -MemoryStartupBytes $memoryStartupBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $newVHDSizeBytes -SwitchName $switchName
+Hyper-V\New-VM -Name $vmName -Path $path -MemoryStartupBytes $memoryStartupBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $newVHDSizeBytes -SwitchName $switchName
 `
 		var ps powershell.PowerShellCmd
 		err := ps.Run(script, vmName, path, strconv.FormatInt(ram, 10), strconv.FormatInt(diskSize, 10), switchName)
@@ -299,12 +299,12 @@ func DeleteVirtualMachine(vmName string) error {
 	var script = `
 param([string]$vmName)
 
-$vm = Get-VM -Name $vmName
+$vm = Hyper-V\Get-VM -Name $vmName
 if (($vm.State -ne [Microsoft.HyperV.PowerShell.VMState]::Off) -and ($vm.State -ne [Microsoft.HyperV.PowerShell.VMState]::OffCritical)) {
-    Stop-VM -VM $vm -TurnOff -Force -Confirm:$false
+    Hyper-V\Stop-VM -VM $vm -TurnOff -Force -Confirm:$false
 }
 
-Remove-VM -Name $vmName -Force -Confirm:$false
+Hyper-V\Remove-VM -Name $vmName -Force -Confirm:$false
 `
 
 	var ps powershell.PowerShellCmd
@@ -316,11 +316,11 @@ func ExportVirtualMachine(vmName string, path string) error {
 
 	var script = `
 param([string]$vmName, [string]$path)
-Export-VM -Name $vmName -Path $path
+Hyper-V\Export-VM -Name $vmName -Path $path
 
 if (Test-Path -Path ([IO.Path]::Combine($path, $vmName, 'Virtual Machines', '*.VMCX')))
 {
-  $vm = Get-VM -Name $vmName
+  $vm = Hyper-V\Get-VM -Name $vmName
   $vm_adapter = Get-VMNetworkAdapter -VM $vm | Select -First 1
 
   $config = [xml]@"
@@ -480,9 +480,9 @@ func StartVirtualMachine(vmName string) error {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 if ($vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Off) {
-  Start-VM -Name $vmName -Confirm:$false
+  Hyper-V\Start-VM -Name $vmName -Confirm:$false
 }
 `
 
@@ -495,7 +495,7 @@ func RestartVirtualMachine(vmName string) error {
 
 	var script = `
 param([string]$vmName)
-Restart-VM $vmName -Force -Confirm:$false
+Hyper-V\Restart-VM $vmName -Force -Confirm:$false
 `
 
 	var ps powershell.PowerShellCmd
@@ -507,9 +507,9 @@ func StopVirtualMachine(vmName string) error {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName
+$vm = Hyper-V\Get-VM -Name $vmName
 if ($vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Running) {
-    Stop-VM -VM $vm -Force -Confirm:$false
+    Hyper-V\Stop-VM -VM $vm -Force -Confirm:$false
 }
 `
 
@@ -673,7 +673,7 @@ func IsRunning(vmName string) (bool, error) {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 $vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Running
 `
 
@@ -692,7 +692,7 @@ func IsOff(vmName string) (bool, error) {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 $vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Off
 `
 
@@ -711,7 +711,7 @@ func Uptime(vmName string) (uint64, error) {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 $vm.Uptime.TotalSeconds
 `
 	var ps powershell.PowerShellCmd
@@ -751,7 +751,7 @@ func IpAddress(mac string) (string, error) {
 	var script = `
 param([string]$mac, [int]$addressIndex)
 try {
-  $ip = Get-Vm | %{$_.NetworkAdapters} | ?{$_.MacAddress -eq $mac} | %{$_.IpAddresses[$addressIndex]}
+  $ip = Hyper-V\Get-VM | %{$_.NetworkAdapters} | ?{$_.MacAddress -eq $mac} | %{$_.IpAddresses[$addressIndex]}
 
   if($ip -eq $null) {
     return ""
@@ -772,9 +772,9 @@ func TurnOff(vmName string) error {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 if ($vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Running) {
-  Stop-VM -Name $vmName -TurnOff -Force -Confirm:$false
+  Hyper-V\Stop-VM -Name $vmName -TurnOff -Force -Confirm:$false
 }
 `
 
@@ -787,9 +787,9 @@ func ShutDown(vmName string) error {
 
 	var script = `
 param([string]$vmName)
-$vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+$vm = Hyper-V\Get-VM -Name $vmName -ErrorAction SilentlyContinue
 if ($vm.State -eq [Microsoft.HyperV.PowerShell.VMState]::Running) {
-  Stop-VM -Name $vmName -Force -Confirm:$false
+  Hyper-V\Stop-VM -Name $vmName -Force -Confirm:$false
 }
 `
 
